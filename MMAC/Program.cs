@@ -28,7 +28,13 @@ using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-// ── Cloudinary Configuration
+
+//  Disable ReloadOnChange to fix Linux/Render 'inotify' file watcher error
+builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                   .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+                   .AddEnvironmentVariables();
+
+// Cloudinary Configuration
 var cloudinaryAccount = new Account(
     builder.Configuration["Cloudinary:CloudName"],
     builder.Configuration["Cloudinary:ApiKey"],
@@ -37,11 +43,11 @@ var cloudinaryAccount = new Account(
 var cloudinary = new Cloudinary(cloudinaryAccount);
 builder.Services.AddSingleton(cloudinary);
 
-// ── Database 
+// Database 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ── Hangfire 
+// Hangfire 
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
@@ -50,7 +56,7 @@ builder.Services.AddHangfire(config => config
         c.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
 builder.Services.AddHangfireServer();
 
-// ── Controllers
+// Controllers
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -58,7 +64,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
-// ── Swagger with JWT 
+// Swagger with JWT 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -84,7 +90,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// ── DI Services 
+// DI Services 
 builder.Services.AddScoped<IPortOfArrivalRepository, PortOfArrivalRepository>();
 builder.Services.AddScoped<IPortOfArrivalService, PortOfArrivalService>();
 builder.Services.AddScoped<IForeignerSearchService, ForeignerSearchService>();
@@ -113,7 +119,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", policy =>
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// ── JWT Authentication
+// JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("JWT Key is missing in configuration");
 
@@ -136,7 +142,7 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
 
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero, // no extra grace time
+        ClockSkew = TimeSpan.Zero,
     };
 });
 
@@ -144,21 +150,22 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// ── Middleware Pipeline (ORDER MATTERS) 
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "eArrival Information System v1");
+    c.RoutePrefix = "swagger";
+});
+
 app.UseRouting();
 
-app.UseCors("AllowAll");//  CORS
+app.UseCors("AllowAll");
 app.UseStaticFiles();
-app.UseAuthentication();           //  Auth (read JWT)
-app.UseAuthorization();            //  Authorize (check claims)
-app.MapControllers();              // Controllers
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
 
-// 5. Hangfire dashboard — no auth in dev
+// Hangfire dashboard
 app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = new Hangfire.Dashboard.IDashboardAuthorizationFilter[] { }
