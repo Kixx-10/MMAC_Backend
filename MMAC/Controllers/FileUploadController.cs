@@ -19,9 +19,23 @@ namespace MMAC.Controllers
             _cloudinary = cloudinary;
         }
 
+        //  Helper: generate a signed URL for an "authenticated" raw asset
+        private string GetSignedFileUrl(string publicId)
+        {
+            var url = _cloudinary.Api.UrlImgUp
+                .ResourceType("raw")
+                .Type("authenticated")
+                .Signed(true)
+                .Secure(true)
+                .BuildUrl(publicId);
+
+            return url;
+        }
+
         [HttpPost("HealthRecord")]
         public async Task<IActionResult> UploadHealthRecord(IFormFile file)
         {
+            // ── Validation 
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "No file received." });
 
@@ -35,14 +49,25 @@ namespace MMAC.Controllers
             if (!_allowedMimeTypes.Contains(file.ContentType.ToLowerInvariant()))
                 return BadRequest(new { message = "Invalid file content type." });
 
+            // ── Upload to Cloudinary 
             using var stream = file.OpenReadStream();
-            var publicId = Guid.NewGuid().ToString();
 
+            // ── OLD CODE (public "upload" type — kept for reference, do not delete) ──
+            // var uploadParams = new RawUploadParams
+            // {
+            //     File = new FileDescription(file.FileName, stream),
+            //     Folder = "mmac/health-records", // Cloudinary folder structure
+            //     PublicId = Guid.NewGuid().ToString(),
+            // };
+
+            // ── NEW CODE: private/authenticated type so PDFs bypass the
+            //    "untrusted account" raw-delivery block ──
             var uploadParams = new RawUploadParams
             {
                 File = new FileDescription(file.FileName, stream),
-                Folder = "mmac/health-records",
-                PublicId = publicId
+                Folder = "mmac/health-records", // Cloudinary folder structure
+                PublicId = Guid.NewGuid().ToString(),
+                Type = "authenticated"
             };
 
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
@@ -55,7 +80,13 @@ namespace MMAC.Controllers
             return Ok(new
             {
                 message = "File uploaded successfully.",
-                fileUrl = uploadResult.SecureUrl.ToString(),
+
+                // ── OLD CODE ──
+                // fileUrl = uploadResult.SecureUrl.ToString(), // Cloudinary HTTPS URL
+
+                // ── NEW CODE: build a signed URL instead of using the raw SecureUrl ──
+                fileUrl = GetSignedFileUrl(uploadResult.PublicId),
+
                 fileName = uploadResult.PublicId,
                 originalFileName = file.FileName
             });
@@ -64,6 +95,7 @@ namespace MMAC.Controllers
         [HttpPost("DigitalRecord")]
         public async Task<IActionResult> UploadDigitalRecord(IFormFile file)
         {
+            // ── Validation 
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "No file received." });
 
@@ -77,14 +109,25 @@ namespace MMAC.Controllers
             if (!_allowedMimeTypes.Contains(file.ContentType.ToLowerInvariant()))
                 return BadRequest(new { message = "Invalid file content type." });
 
+            // ── Upload to Cloudinary 
             using var stream = file.OpenReadStream();
-            var publicId = Guid.NewGuid().ToString();
 
+            // ── OLD CODE (public "upload" type — kept for reference, do not delete) ──
+            // var uploadParams = new RawUploadParams
+            // {
+            //     File = new FileDescription(file.FileName, stream),
+            //     Folder = "mmac/digital-records",
+            //     PublicId = Guid.NewGuid().ToString(),
+            // };
+
+            // ── NEW CODE: private/authenticated type so PDFs bypass the
+            //    "untrusted account" raw-delivery block ──
             var uploadParams = new RawUploadParams
             {
                 File = new FileDescription(file.FileName, stream),
                 Folder = "mmac/digital-records",
-                PublicId = publicId
+                PublicId = Guid.NewGuid().ToString(),
+                Type = "authenticated"
             };
 
             var uploadResult = await _cloudinary.UploadAsync(uploadParams);
@@ -97,13 +140,21 @@ namespace MMAC.Controllers
             return Ok(new
             {
                 message = "Digital record uploaded successfully.",
-                fileUrl = uploadResult.SecureUrl.ToString(),
+
+                // ── OLD CODE ──
+                // fileUrl = uploadResult.SecureUrl.ToString(),
+
+                // ── NEW CODE: build a signed URL instead of using the raw SecureUrl ──
+                fileUrl = GetSignedFileUrl(uploadResult.PublicId),
+
                 fileName = uploadResult.PublicId,
                 originalFileName = file.FileName
             });
         }
     }
 }
+
+
 
 //using CloudinaryDotNet;
 //using CloudinaryDotNet.Actions;
@@ -149,7 +200,8 @@ namespace MMAC.Controllers
 //            {
 //                File = new FileDescription(file.FileName, stream),
 //                Folder = "mmac/health-records", // Cloudinary folder structure
-//                PublicId = Guid.NewGuid().ToString()
+//                PublicId = Guid.NewGuid().ToString(),
+
 //            };
 
 //            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
@@ -191,7 +243,8 @@ namespace MMAC.Controllers
 //            {
 //                File = new FileDescription(file.FileName, stream),
 //                Folder = "mmac/digital-records",
-//                PublicId = Guid.NewGuid().ToString()
+//                PublicId = Guid.NewGuid().ToString(),
+
 //            };
 
 //            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
