@@ -194,7 +194,7 @@ namespace MMAC.Services.PdfService
 
                 try
                 {
-                    string senderEmail = _configuration["EmailSettings:SenderEmail"] ?? "jr.paingwaiyankhant@gmail.com";
+                    string senderEmail = _configuration["EmailSettings:SenderEmail"] ?? "ath7107@gmail.com";
                     string senderName = _configuration["EmailSettings:SenderName"] ?? "MMAC Arrival System";
                     string appPassword = _configuration["EmailSettings:AppPassword"] ?? "";
 
