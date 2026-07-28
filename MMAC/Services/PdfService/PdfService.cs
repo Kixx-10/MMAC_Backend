@@ -129,7 +129,7 @@ namespace MMAC.Services.PdfService
 
                 // Row 2: PREVIOUS CITY & ACCOMMODATION
                 DrawField(page, "PREVIOUS CITY", model.PreviousCity, labelFont, valueFont, 10, currentY);
-                DrawField(page, "ACCOMMODATION", model.Accommodation, labelFont, valueFont, col2X, currentY);
+                //DrawField(page, "ACCOMMODATION", model.Accommodation, labelFont, valueFont, col2X, currentY);
                 currentY += 38f;
 
                 // Row 3: ADDRESS IN MYANMAR
@@ -148,13 +148,13 @@ namespace MMAC.Services.PdfService
                 string q1 = "Do you currently have or have you had in the past 14 days any of the following symptoms: fever, cough, sore throat, or shortness of breath?";
                 PdfTextWidget q1Widget = new PdfTextWidget(q1, valueFont, blackBrush);
                 q1Widget.Draw(page, new RectangleF(10, currentY, pageWidth - 60, 30), textLayout);
-                page.Canvas.DrawString("NO", labelFont, themeBrush, pageWidth - 40, currentY + 5f);
+                page.Canvas.DrawString(model.HealthDeclaration, labelFont, themeBrush, pageWidth - 40, currentY + 5f);
                 currentY += 35f;
 
                 string q2 = "Are you carrying any prohibited or restricted items such as plants, seeds, unprocessed foods, meats, endangered animal products, or illegal drugs?";
                 PdfTextWidget q2Widget = new PdfTextWidget(q2, valueFont, blackBrush);
                 q2Widget.Draw(page, new RectangleF(10, currentY, pageWidth - 60, 30), textLayout);
-                page.Canvas.DrawString("NO", labelFont, themeBrush, pageWidth - 40, currentY + 5f);
+                page.Canvas.DrawString(model.DigitalDeclarations, labelFont, themeBrush, pageWidth - 40, currentY + 5f);
                 currentY += 45f;
 
                 // --- FOOTER ---

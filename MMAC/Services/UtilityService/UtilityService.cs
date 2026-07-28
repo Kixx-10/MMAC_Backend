@@ -7,8 +7,8 @@ namespace MMAC.Services.UtilityService
     public class UtilityService : IUtilityService
     {
         private readonly AppDbContext _context;
-        public UtilityService(AppDbContext context) 
-        { 
+        public UtilityService(AppDbContext context)
+        {
             _context = context;
         }
 
@@ -23,16 +23,17 @@ namespace MMAC.Services.UtilityService
                    {
                        state = sr,
                        districts = _context.District
+                       .Where(d => d.SRId == sr.Id && d.SystemUse == "Y")
                            .Where(d => d.SRId == sr.Id)
                            .Select(d => new DistrictDTO
                            {
                                district = d,
                                townships = _context.Township
                                    .Where(t => t.DistrictId == d.DistrictId)
-                                   .ToList() 
+                                   .ToList()
                            }).ToList()
                    })
-                   .ToListAsync(); 
+                   .ToListAsync();
 
                 return locations;
             }
@@ -51,13 +52,13 @@ namespace MMAC.Services.UtilityService
             try
             {
 
-                var nrcs = await _context.NRC_StateRegion .AsNoTracking() .Select(sr => new NrcDTO
-                    {
-                        nrcState = sr,
-                        nrcTownships = _context.NRC_Township
-                                        .Where(t => t.NRC_SRId == sr .Id)
+                var nrcs = await _context.NRC_StateRegion.AsNoTracking().Select(sr => new NrcDTO
+                {
+                    nrcState = sr,
+                    nrcTownships = _context.NRC_Township
+                                        .Where(t => t.NRC_SRId == sr.Id)
                                         .ToList()
-                    })
+                })
                     .ToListAsync();
 
                 return nrcs;
