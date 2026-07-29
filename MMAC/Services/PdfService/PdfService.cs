@@ -1,4 +1,5 @@
 ﻿
+using MMAC.Data;
 using MMAC.DTOS;
 using MMAC.Services.AuditLogService;
 using QRCoder;
@@ -187,13 +188,13 @@ namespace MMAC.Services.PdfService
             using var qrCode = new PngByteQRCode(qrCodeData);
             return qrCode.GetGraphic(20);
         }
-
         public void SendPdfEmailInBackground(string toEmail, string applicationId, byte[] pdfBytes, string referenceNo, Guid travellerId)
         {
             Task.Run(async () =>
             {
                 using var scope = _scopeFactory.CreateScope();
                 var scopedAuditLogService = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
                 try
                 {
@@ -224,6 +225,17 @@ namespace MMAC.Services.PdfService
 
                     var response = await httpClient.PostAsJsonAsync("https://api.resend.com/emails", payload);
 
+                    // Database ထဲတွင် Traveller အမှန်တကယ် ရှိမရှိ စစ်ဆေးခြင်း
+                    Guid validTravellerId = Guid.Empty;
+                    if (travellerId != Guid.Empty)
+                    {
+                        bool travellerExists = dbContext.Traveller.Any(t => t.TravellerId == travellerId);
+                        if (travellerExists)
+                        {
+                            validTravellerId = travellerId;
+                        }
+                    }
+
                     if (response.IsSuccessStatusCode)
                     {
                         var successLogObj = new Dictionary<string, string>
@@ -232,7 +244,7 @@ namespace MMAC.Services.PdfService
                     { "AppId", applicationId },
                     { "Status", "Success" }
                 };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, travellerId);
+                        await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, validTravellerId);
                     }
                     else
                     {
@@ -244,7 +256,7 @@ namespace MMAC.Services.PdfService
                     { "To", toEmail },
                     { "ErrorMessage", $"{response.StatusCode} - {errorBody}" }
                 };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
+                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, validTravellerId);
                     }
                 }
                 catch (Exception ex)
@@ -257,7 +269,7 @@ namespace MMAC.Services.PdfService
                     { "To", toEmail },
                     { "ErrorMessage", ex.Message }
                 };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
+                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, Guid.Empty);
                     }
                     catch (Exception logEx)
                     {
@@ -266,6 +278,84 @@ namespace MMAC.Services.PdfService
                 }
             });
         }
+        //public void SendPdfEmailInBackground(string toEmail, string applicationId, byte[] pdfBytes, string referenceNo, Guid travellerId)
+        //{
+        //    Task.Run(async () =>
+        //    {
+        //        using var scope = _scopeFactory.CreateScope();
+        //        var scopedAuditLogService = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
+
+        //        try
+        //        {
+        //            string resendApiKey = _configuration["Resend:ApiKey"] ?? "";
+        //            string fromEmail = _configuration["Resend:FromEmail"] ?? "onboarding@resend.dev";
+        //            string replyToEmail = _configuration["Resend:ReplyToEmail"] ?? "";
+
+        //            using var httpClient = new HttpClient();
+        //            httpClient.DefaultRequestHeaders.Authorization =
+        //                new AuthenticationHeaderValue("Bearer", resendApiKey);
+
+        //            var payload = new ResendEmailRequest
+        //            {
+        //                From = $"MMAC Arrival System <{fromEmail}>",
+        //                ReplyTo = string.IsNullOrEmpty(replyToEmail) ? null : new[] { replyToEmail },
+        //                To = new[] { toEmail },
+        //                Subject = "Your e-Arrival Form Submission",
+        //                Text = "Dear Applicant,\n\nYour application has been submitted successfully. Please find your official e-Arrival Form PDF attached below.",
+        //                Attachments = new[]
+        //                {
+        //            new ResendAttachment
+        //            {
+        //                Filename = $"MM_ArrivalForm_{referenceNo}.pdf",
+        //                Content = Convert.ToBase64String(pdfBytes)
+        //            }
+        //        }
+        //            };
+
+        //            var response = await httpClient.PostAsJsonAsync("https://api.resend.com/emails", payload);
+
+        //            if (response.IsSuccessStatusCode)
+        //            {
+        //                var successLogObj = new Dictionary<string, string>
+        //        {
+        //            { "To", toEmail },
+        //            { "AppId", applicationId },
+        //            { "Status", "Success" }
+        //        };
+        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, travellerId);
+        //            }
+        //            else
+        //            {
+        //                string errorBody = await response.Content.ReadAsStringAsync();
+        //                Console.WriteLine($"[Resend Email Error]: {response.StatusCode} - {errorBody}");
+
+        //                var errorLogObj = new Dictionary<string, string>
+        //        {
+        //            { "To", toEmail },
+        //            { "ErrorMessage", $"{response.StatusCode} - {errorBody}" }
+        //        };
+        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine($"[Resend Email Error]: {ex.Message}");
+        //            try
+        //            {
+        //                var errorLogObj = new Dictionary<string, string>
+        //        {
+        //            { "To", toEmail },
+        //            { "ErrorMessage", ex.Message }
+        //        };
+        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
+        //            }
+        //            catch (Exception logEx)
+        //            {
+        //                Console.WriteLine($"[Critical Audit Log Error]: {logEx.Message}");
+        //            }
+        //        }
+        //    });
+        //}
 
     }
     public class ResendEmailRequest
