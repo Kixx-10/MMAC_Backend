@@ -4,6 +4,13 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+# Linux Native Libraries များ (PDF, Database နှင့် Kerberos ချိတ်ဆက်ရန် လိုအပ်သည်များ)
+RUN apt-get update && apt-get install -y \
+    libgssapi-krb5-2 \
+    libgdiplus \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # 👇 FileWatcher/inotify Error 
 ENV DOTNET_USE_POLLING_FILE_WATCHER=true
 ENV ASPNETCORE_HOSTINGSTARTUPASSEMBLIES=""
