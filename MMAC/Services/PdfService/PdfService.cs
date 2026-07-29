@@ -4,8 +4,10 @@ using QRCoder;
 using Spire.Pdf;
 using Spire.Pdf.Graphics;
 using System.Drawing;
-using System.Net;
-using System.Net.Mail;
+using System.Net.Http.Headers;
+using System.Text.Json.Serialization;
+//using System.Net;
+//using System.Net.Mail;
 
 namespace MMAC.Services.PdfService
 {
@@ -194,56 +196,66 @@ namespace MMAC.Services.PdfService
 
                 try
                 {
-                    string senderEmail = _configuration["EmailSettings:SenderEmail"] ?? "ath7107@gmail.com";
-                    string senderName = _configuration["EmailSettings:SenderName"] ?? "MMAC Arrival System";
-                    string appPassword = _configuration["EmailSettings:AppPassword"] ?? "";
+                    string resendApiKey = _configuration["Resend:ApiKey"] ?? "";
+                    string fromEmail = _configuration["Resend:FromEmail"] ?? "onboarding@resend.dev";
+                    string replyToEmail = _configuration["Resend:ReplyToEmail"] ?? "";
 
-                    var fromAddress = new MailAddress(senderEmail, senderName);
-                    var toAddress = new MailAddress(toEmail);
-                    string subject = "Your e-Arrival Form Submission";
-                    string body = "Dear Applicant,\n\nYour application has been submitted successfully. Please find your official e-Arrival Form PDF attached below.";
+                    using var httpClient = new HttpClient();
+                    httpClient.DefaultRequestHeaders.Authorization =
+                        new AuthenticationHeaderValue("Bearer", resendApiKey);
 
-                    using var smtp = new SmtpClient
+                    var payload = new ResendEmailRequest
                     {
-                        Host = "smtp.gmail.com",
-                        Port = 587,
-                        EnableSsl = true,
-                        DeliveryMethod = SmtpDeliveryMethod.Network,
-                        UseDefaultCredentials = false,
-                        Credentials = new NetworkCredential(fromAddress.Address, appPassword)
+                        From = $"MMAC Arrival System <{fromEmail}>",
+                        ReplyTo = string.IsNullOrEmpty(replyToEmail) ? null : new[] { replyToEmail },
+                        To = new[] { toEmail },
+                        Subject = "Your e-Arrival Form Submission",
+                        Text = "Dear Applicant,\n\nYour application has been submitted successfully. Please find your official e-Arrival Form PDF attached below.",
+                        Attachments = new[]
+                        {
+                    new ResendAttachment
+                    {
+                        Filename = $"MM_ArrivalForm_{referenceNo}.pdf",
+                        Content = Convert.ToBase64String(pdfBytes)
+                    }
+                }
                     };
 
-                    using var message = new MailMessage(fromAddress, toAddress)
+                    var response = await httpClient.PostAsJsonAsync("https://api.resend.com/emails", payload);
+
+                    if (response.IsSuccessStatusCode)
                     {
-                        Subject = subject,
-                        Body = body
-                    };
-
-                    using var ms = new MemoryStream(pdfBytes);
-                    message.Attachments.Add(new Attachment(ms, $"MM_ArrivalForm_{referenceNo}.pdf", "application/pdf"));
-
-                    await smtp.SendMailAsync(message);
-
-                    var successLogObj = new System.Collections.Generic.Dictionary<string, string>
+                        var successLogObj = new Dictionary<string, string>
+                {
+                    { "To", toEmail },
+                    { "AppId", applicationId },
+                    { "Status", "Success" }
+                };
+                        await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, travellerId);
+                    }
+                    else
                     {
-                        { "To", toEmail },
-                        { "AppId", applicationId },
-                        { "Status", "Success" }
-                    };
+                        string errorBody = await response.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[Resend Email Error]: {response.StatusCode} - {errorBody}");
 
-                    await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, travellerId);
+                        var errorLogObj = new Dictionary<string, string>
+                {
+                    { "To", toEmail },
+                    { "ErrorMessage", $"{response.StatusCode} - {errorBody}" }
+                };
+                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[SMTP Email Error]: {ex.Message}");
+                    Console.WriteLine($"[Resend Email Error]: {ex.Message}");
                     try
                     {
-                        var errorLogObj = new System.Collections.Generic.Dictionary<string, string>
-                        {
-                            { "To", toEmail },
-                            { "ErrorMessage", ex.Message }
-                        };
-
+                        var errorLogObj = new Dictionary<string, string>
+                {
+                    { "To", toEmail },
+                    { "ErrorMessage", ex.Message }
+                };
                         await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
                     }
                     catch (Exception logEx)
@@ -255,4 +267,34 @@ namespace MMAC.Services.PdfService
         }
 
     }
+    public class ResendEmailRequest
+    {
+        [JsonPropertyName("from")]
+        public string From { get; set; } = "";
+
+        [JsonPropertyName("to")]
+        public string[] To { get; set; } = Array.Empty<string>();
+
+        [JsonPropertyName("reply_to")]
+        public string[]? ReplyTo { get; set; }
+
+        [JsonPropertyName("subject")]
+        public string Subject { get; set; } = "";
+
+        [JsonPropertyName("text")]
+        public string Text { get; set; } = "";
+
+        [JsonPropertyName("attachments")]
+        public ResendAttachment[] Attachments { get; set; } = Array.Empty<ResendAttachment>();
+    }
+
+    public class ResendAttachment
+    {
+        [JsonPropertyName("filename")]
+        public string Filename { get; set; } = "";
+
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = "";
+    }
+
 }
