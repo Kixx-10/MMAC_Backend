@@ -181,9 +181,6 @@ namespace MMAC.Services.PdfService
         {
             Task.Run(async () =>
             {
-                using var scope = _scopeFactory.CreateScope();
-                var scopedAuditLogService = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
-
                 try
                 {
                     string brevoApiKey = _configuration["Brevo:ApiKey"] ?? "";
@@ -202,55 +199,47 @@ namespace MMAC.Services.PdfService
                         TextContent = "Dear Applicant,\n\nYour application has been submitted successfully. Please find your official e-Arrival Form PDF attached below.",
                         Attachment = new[]
                         {
-                            new BrevoAttachment
-                            {
-                                Name = $"MM_ArrivalForm_{referenceNo}.pdf",
-                                Content = Convert.ToBase64String(pdfBytes)
-                            }
-                        }
+                    new BrevoAttachment
+                    {
+                        Name = $"MM_ArrivalForm_{referenceNo}.pdf",
+                        Content = Convert.ToBase64String(pdfBytes)
+                    }
+                }
                     };
 
                     var response = await httpClient.PostAsJsonAsync("https://api.brevo.com/v3/smtp/email", payload);
 
                     if (response.IsSuccessStatusCode)
                     {
-                        var successLogObj = new Dictionary<string, string>
-                        {
-                            { "To", toEmail },
-                            { "AppId", applicationId },
-                            { "Status", "Success" }
-                        };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, travellerId);
+                        Console.WriteLine($"[Brevo Email Success]: Email sent to {toEmail}");
                     }
                     else
                     {
                         string errorBody = await response.Content.ReadAsStringAsync();
                         Console.WriteLine($"[Brevo Email Error]: {response.StatusCode} - {errorBody}");
-
-                        var errorLogObj = new Dictionary<string, string>
-                        {
-                            { "To", toEmail },
-                            { "ErrorMessage", $"{response.StatusCode} - {errorBody}" }
-                        };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Brevo Email Error]: {ex.Message}");
-                    try
-                    {
-                        var errorLogObj = new Dictionary<string, string>
-                        {
-                            { "To", toEmail },
-                            { "ErrorMessage", ex.Message }
-                        };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
-                    }
-                    catch (Exception logEx)
-                    {
-                        Console.WriteLine($"[Critical Audit Log Error]: {logEx.Message}");
-                    }
+                    Console.WriteLine($"[Brevo Exception Error]: {ex.Message}");
+                }
+
+
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var scopedAuditLogService = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
+
+                    var logObj = new Dictionary<string, string>
+            {
+                { "To", toEmail },
+                { "AppId", applicationId }
+            };
+                    await scopedAuditLogService.LogAsync("EMAIL_PROCESS_COMPLETED", logObj, travellerId);
+                }
+                catch (Exception logEx)
+                {
+                    Console.WriteLine($"[Audit Log Ignored Error]: {logEx.Message}");
                 }
             });
         }
