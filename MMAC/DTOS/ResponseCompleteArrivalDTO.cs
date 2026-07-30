@@ -2,6 +2,7 @@
 {
     public class ResponseCompleteArrivalDTO
     {
+        public Guid TravellerId { get; set; } // to fix foreign key audit log error
         public string ReferenceNo { get; set; } = string.Empty;
         public string AppStatus { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;

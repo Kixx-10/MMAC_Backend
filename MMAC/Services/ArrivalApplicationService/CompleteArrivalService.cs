@@ -115,7 +115,8 @@ namespace MMAC.Services.ArrivalInterface
                 {
                     ApplicationNo = savedAppNo,
                     ReferenceNo = arrivalApplication.ReferenceNo,
-                    Token = token
+                    Token = token,                        //TravellerId to fix fk key audit log
+                    TravellerId = currentTravellerId
                 };
 
 

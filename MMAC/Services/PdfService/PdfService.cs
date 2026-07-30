@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.EntityFrameworkCore;
 using MMAC.Data;
 using MMAC.DTOS;
 using MMAC.Services.AuditLogService;
@@ -188,6 +189,7 @@ namespace MMAC.Services.PdfService
             using var qrCode = new PngByteQRCode(qrCodeData);
             return qrCode.GetGraphic(20);
         }
+
         public void SendPdfEmailInBackground(string toEmail, string applicationId, byte[] pdfBytes, string referenceNo, Guid travellerId)
         {
             Task.Run(async () =>
@@ -229,7 +231,7 @@ namespace MMAC.Services.PdfService
                     Guid validTravellerId = Guid.Empty;
                     if (travellerId != Guid.Empty)
                     {
-                        bool travellerExists = dbContext.Traveller.Any(t => t.TravellerId == travellerId);
+                        bool travellerExists = await dbContext.Traveller.AnyAsync(t => t.TravellerId == travellerId);
                         if (travellerExists)
                         {
                             validTravellerId = travellerId;
@@ -244,7 +246,16 @@ namespace MMAC.Services.PdfService
                     { "AppId", applicationId },
                     { "Status", "Success" }
                 };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, validTravellerId);
+
+                        // ✅ validTravellerId ရှိမှသာ audit log ရေးမယ်
+                        if (validTravellerId != Guid.Empty)
+                        {
+                            await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, validTravellerId);
+                        }
+                        else
+                        {
+                            Console.WriteLine("[Audit Log Skipped]: TravellerId invalid or not found — email sent successfully but not logged.");
+                        }
                     }
                     else
                     {
@@ -256,25 +267,25 @@ namespace MMAC.Services.PdfService
                     { "To", toEmail },
                     { "ErrorMessage", $"{response.StatusCode} - {errorBody}" }
                 };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, validTravellerId);
+
+                        // ✅ validTravellerId ရှိမှသာ audit log ရေးမယ်
+                        if (validTravellerId != Guid.Empty)
+                        {
+                            await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, validTravellerId);
+                        }
+                        else
+                        {
+                            Console.WriteLine("[Audit Log Skipped]: TravellerId invalid or not found — email failed and not logged.");
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[Resend Email Error]: {ex.Message}");
-                    try
-                    {
-                        var errorLogObj = new Dictionary<string, string>
-                {
-                    { "To", toEmail },
-                    { "ErrorMessage", ex.Message }
-                };
-                        await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, Guid.Empty);
-                    }
-                    catch (Exception logEx)
-                    {
-                        Console.WriteLine($"[Critical Audit Log Error]: {logEx.Message}");
-                    }
+
+                    // ✅ Catch block ထဲမှာလည်း Guid.Empty ကို LogAsync ကို လုံးဝ မပို့တော့ဘူး
+                    // (Traveller ရှိမရှိ ဒီနေရာမှာ recheck လုပ်ဖို့ခက်လို့ log ကို skip လုပ်ရုံပဲ)
+                    Console.WriteLine("[Audit Log Skipped]: Exception occurred before validation completed.");
                 }
             });
         }
@@ -284,6 +295,7 @@ namespace MMAC.Services.PdfService
         //    {
         //        using var scope = _scopeFactory.CreateScope();
         //        var scopedAuditLogService = scope.ServiceProvider.GetRequiredService<IAuditLogService>();
+        //        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         //        try
         //        {
@@ -314,6 +326,17 @@ namespace MMAC.Services.PdfService
 
         //            var response = await httpClient.PostAsJsonAsync("https://api.resend.com/emails", payload);
 
+        //            // Database ထဲတွင် Traveller အမှန်တကယ် ရှိမရှိ စစ်ဆေးခြင်း
+        //            Guid validTravellerId = Guid.Empty;
+        //            if (travellerId != Guid.Empty)
+        //            {
+        //                bool travellerExists = dbContext.Traveller.Any(t => t.TravellerId == travellerId);
+        //                if (travellerExists)
+        //                {
+        //                    validTravellerId = travellerId;
+        //                }
+        //            }
+
         //            if (response.IsSuccessStatusCode)
         //            {
         //                var successLogObj = new Dictionary<string, string>
@@ -322,7 +345,7 @@ namespace MMAC.Services.PdfService
         //            { "AppId", applicationId },
         //            { "Status", "Success" }
         //        };
-        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, travellerId);
+        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_SUCCESS", successLogObj, validTravellerId);
         //            }
         //            else
         //            {
@@ -334,7 +357,7 @@ namespace MMAC.Services.PdfService
         //            { "To", toEmail },
         //            { "ErrorMessage", $"{response.StatusCode} - {errorBody}" }
         //        };
-        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
+        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, validTravellerId);
         //            }
         //        }
         //        catch (Exception ex)
@@ -347,7 +370,7 @@ namespace MMAC.Services.PdfService
         //            { "To", toEmail },
         //            { "ErrorMessage", ex.Message }
         //        };
-        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, travellerId);
+        //                await scopedAuditLogService.LogAsync("EMAIL_SENT_FAILED", errorLogObj, Guid.Empty);
         //            }
         //            catch (Exception logEx)
         //            {
