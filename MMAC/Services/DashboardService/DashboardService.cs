@@ -1,5 +1,4 @@
 ﻿using MMAC.DTOS;
-using MMAC.Models.Cores;
 using MMAC.Repositories.DashboardRepository;
 
 namespace MMAC.Services.DashboardService
@@ -15,37 +14,66 @@ namespace MMAC.Services.DashboardService
 
         public async Task<DashboardDTO> GetDashboardDataAsync(DateTime? fromDate, DateTime? toDate)
         {
-            List<Traveller> travellers;
-            List<ArrivalApplication> apps;
+            var apps = fromDate.HasValue && toDate.HasValue
+                ? await _repo.GetApplicationsAsync(fromDate.Value, toDate.Value)
+                : await _repo.GetAllApplicationsAsync();
 
-            if (fromDate.HasValue && toDate.HasValue)
+            var today = DateTime.UtcNow.Date;
+
+            // Build monthly counts for the current year
+            var monthlyData = Enumerable.Range(1, 12).Select(m => new MonthlyStatusCount
             {
-                travellers = await _repo.GetTravellersAsync(fromDate.Value, toDate.Value);
-                apps = await _repo.GetApplicationsAsync(fromDate.Value, toDate.Value);
-            }
-            else
+                Month = m,
+                Submitted = apps.Count(a => a.CreatedDate.Month == m && a.CreatedDate.Year == today.Year && a.AppStatus == "Submitted"),
+                Invalid = apps.Count(a => a.CreatedDate.Month == m && a.CreatedDate.Year == today.Year && a.AppStatus == "Invalid"),
+                Expired = apps.Count(a => a.CreatedDate.Month == m && a.CreatedDate.Year == today.Year && a.AppStatus == "Expired")
+            }).ToList();
+
+            // Top 10 nationalities
+            var totalCount = apps.Count;
+            var topNationalities = apps
+                .Where(a => a.Traveller != null)
+                .GroupBy(a => new
+                {
+                    a.Traveller!.NationalityCode,
+                    Name = a.Traveller.Nationality?.Name ?? a.Traveller.NationalityCode
+                })
+                .OrderByDescending(g => g.Count())
+                .Take(10)
+                .Select(g => new NationalityCount
+                {
+                    NationalityCode = g.Key.NationalityCode,
+                    NationalityName = g.Key.Name,
+                    Count = g.Count(),
+                    Percentage = totalCount > 0
+                        ? Math.Round((double)g.Count() / totalCount * 100, 2)
+                        : 0
+                })
+                .ToList();
+
+            return new DashboardDTO
             {
-                travellers = await _repo.GetAllTravellersAsync();
-                apps = await _repo.GetAllApplicationsAsync();
-            }
+                SubmittedApplicationCount = apps.Count(a => a.AppStatus == "Submitted"),
+                InvalidApplicationCount = apps.Count(a => a.AppStatus == "Invalid"),
+                ExpiredApplicationCount = apps.Count(a => a.AppStatus == "Expired"),
+                TotalApplicationCount = apps.Count,
 
-            var dto = new DashboardDTO
-            {
-                Travellers = travellers,
-                Applications = apps,
+                TodayTotalCount = apps.Count(a => a.CreatedDate == today),
+                TodaySubmittedCount = apps.Count(a => a.CreatedDate == today && a.AppStatus == "Submitted"),
+                TodayInvalidCount = apps.Count(a => a.CreatedDate == today && a.AppStatus == "Invalid"),
+                TodayExpiredCount = apps.Count(a => a.CreatedDate == today && a.AppStatus == "Expired"),
 
-                // Submitted Application Counts
-                SubmitedApplicationCount = apps.Count,
-                SubmitedApplicationByMyanmarCount = apps.Count(a => a.Traveller?.NationalityCode == "MM"),
-                SubmitedApplicationByForeignerCount = apps.Count(a => a.Traveller?.NationalityCode != "MM"),
-
-                // Approved Application Counts
-                ApprovedApplicationCount = apps.Count(a => a.AppStatus == "Approved"),
-                ApprovedApplicationByMyanmarCount = apps.Count(a => a.AppStatus == "Approved" && a.Traveller?.NationalityCode == "MM"),
-                ApprovedApplicationByForeignerCount = apps.Count(a => a.AppStatus == "Approved" && a.Traveller?.NationalityCode != "MM")
+                MonthlyStatusCounts = monthlyData,
+                TopNationalities = topNationalities
             };
+        }
 
-            return dto;
+        public async Task<PagedTravellerResult> GetFilteredTravellersAsync(
+            string? status, int? regionId, int? districtId, int? townshipId,
+            DateTime? fromDate, DateTime? toDate, int page, int pageSize)
+        {
+            return await _repo.GetFilteredTravellersAsync(
+                status, regionId, districtId, townshipId, fromDate, toDate, page, pageSize);
         }
     }
 }
