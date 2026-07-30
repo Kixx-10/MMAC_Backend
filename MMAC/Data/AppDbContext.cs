@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MMAC.Models.Address;
 using MMAC.Models.Audits;
+using MMAC.Models.Auth;
 using MMAC.Models.Cores;
 using MMAC.Models.Master;
 using MMAC.Models.NRC;
@@ -36,6 +37,7 @@ namespace MMAC.Data
 
         //For Audits
         public DbSet<AuditLogs> AuditLogs { get; set; }
+        public DbSet<Auth> Auths { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
