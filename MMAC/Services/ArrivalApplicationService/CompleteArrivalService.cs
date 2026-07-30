@@ -103,7 +103,7 @@ namespace MMAC.Services.ArrivalInterface
                     );
                 }
 
-                var token = await _tokenService.CreateToken(traveller.TravellerId);
+
                 if (!isUpdateFlow)
                 {
                     currentTravellerId = traveller.TravellerId;
@@ -115,8 +115,7 @@ namespace MMAC.Services.ArrivalInterface
                 {
                     ApplicationNo = savedAppNo,
                     ReferenceNo = arrivalApplication.ReferenceNo,
-                    Token = token,                        //TravellerId to fix fk key audit log
-                    TravellerId = currentTravellerId
+                    TravellerId = currentTravellerId    //TravellerId to fix fk key audit log
                 };
 
 

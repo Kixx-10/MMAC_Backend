@@ -12,10 +12,12 @@ using MMAC.Data;
 using MMAC.Interfaces;
 using MMAC.Profiles;
 using MMAC.Repositories;
+using MMAC.Repositories.AuthRepository;
 using MMAC.Repositories.DashboardRepository;
 using MMAC.Services;
 using MMAC.Services.ArrivalInterface;
 using MMAC.Services.AuditLogService;
+using MMAC.Services.AuthService;
 using MMAC.Services.DashboardService;
 using MMAC.Services.PdfService;
 using MMAC.Services.PortOfArrivalService;
@@ -104,6 +106,8 @@ builder.Services.AddScoped<ICountryService, CountryService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<ISignInService, SignInService>();
+builder.Services.AddScoped<ISignInRepository, SignInRepository>();
 builder.Services.AddHttpContextAccessor();
 
 // ── AutoMapper 

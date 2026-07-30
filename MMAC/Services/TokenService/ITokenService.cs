@@ -2,6 +2,6 @@
 {
     public interface ITokenService
     {
-        Task<String> CreateToken(Guid travellerId);
+        Task<String> CreateToken(int id);
     }
 }

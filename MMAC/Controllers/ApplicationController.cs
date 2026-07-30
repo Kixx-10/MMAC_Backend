@@ -143,60 +143,6 @@ namespace MMAC.Controllers
                 return StatusCode(500, new { message = "An error occurred while sending the email.", error = ex.Message });
             }
         }
-        //public async Task<IActionResult> SendEmail([FromBody] SendEmailRequestDTO request)
-        //{
-        //    if (request == null || request.Model == null)
-        //    {
-        //        return BadRequest(new { message = "Invalid request data." });
-        //    }
-
-        //    string emailToSend = !string.IsNullOrEmpty(request.TargetEmail) ? request.TargetEmail : request.Model.Email;
-
-        //    if (string.IsNullOrEmpty(emailToSend))
-        //    {
-        //        return BadRequest(new { message = "Recipient email address is required." });
-        //    }
-
-        //    if (request.ApplicationNo == Guid.Empty || string.IsNullOrEmpty(request.ReferenceNo))
-        //    {
-        //        return BadRequest(new { message = "ApplicationNo and ReferenceNo are required." });
-        //    }
-
-        //    try
-        //    {
-        //        var country = await _context.Country.FirstOrDefaultAsync(c => c.CountryCode == request.Model.NationalityCode);
-        //        string countryName = country?.Name ?? request.Model.NationalityCode;
-
-        //        var township = await _context.Township
-        //            .Include(t => t.District)
-        //                .ThenInclude(d => d.StateRegion)
-        //            .FirstOrDefaultAsync(t => t.Id == request.Model.TownshipId);
-
-        //        var addressParts = new List<string>();
-        //        if (!string.IsNullOrWhiteSpace(request.Model.AddressInMyanmar)) addressParts.Add(request.Model.AddressInMyanmar);
-        //        if (township != null) addressParts.Add(township.Name);
-        //        if (township?.District != null) addressParts.Add(township.District.Name);
-        //        if (township?.District?.StateRegion != null) addressParts.Add(township.District.StateRegion.Name);
-
-        //        string fullAddress = string.Join(", ", addressParts);
-        //        if (string.IsNullOrWhiteSpace(fullAddress)) fullAddress = "N/A";
-
-        //        // PDF ထုတ်လုပ်ခြင်း
-        //        byte[] pdfBytes = await _pdfService.GenerateArrivalPdfAsync(request.Model, request.ApplicationNo, request.ReferenceNo, countryName, fullAddress);
-
-        //        _pdfService.SendPdfEmailInBackground(emailToSend, request.ApplicationNo.ToString(), pdfBytes, request.ReferenceNo, request.Model.TravellerId);
-
-        //        return Ok(new
-        //        {
-        //            message = $"PDF email submission initiated successfully for {emailToSend}",
-        //            status = "Success"
-        //        });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = "An error occurred while sending the email.", error = ex.Message });
-        //    }
-        //}
 
         [HttpGet("SearchApplicationByQRCode{AppNo}")]
         public async Task<IActionResult> GetDetails(Guid AppNo)

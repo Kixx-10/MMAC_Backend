@@ -17,10 +17,10 @@ namespace MMAC.Services.TokenService
             _context = context;
         }
 
-        public async Task<string> CreateToken(Guid travellerId)
+        public async Task<string> CreateToken(int id)
         {
-            var traveller = await _context.Traveller.FindAsync(travellerId);
-            if (traveller == null) throw new Exception("Traveller not found");
+            var user = await _context.Auths.FindAsync(id);
+            if (user == null) throw new Exception("User not found");
 
             var jwtKey = _config["Jwt:Key"]
                 ?? throw new InvalidOperationException("JWT Key is missing");
@@ -28,11 +28,14 @@ namespace MMAC.Services.TokenService
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
 
+
+            string roleName = user.Role ? "Admin" : "Officer";
+
             var claims = new List<Claim>
             {
-                new Claim("id",                        traveller.TravellerId.ToString()),
-                new Claim(JwtRegisteredClaimNames.Name, traveller.FullName),
-                new Claim("PassportNo",                traveller.PassportNo),
+                new Claim(JwtRegisteredClaimNames.NameId, user.Id.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(ClaimTypes.Role, roleName)
             };
 
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -40,8 +43,6 @@ namespace MMAC.Services.TokenService
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddMinutes(60),
                 SigningCredentials = creds,
-
-                // must match ValidIssuer / ValidAudience in Program.cs ──
                 Issuer = _config["Jwt:Issuer"],
                 Audience = _config["Jwt:Audience"],
             };
