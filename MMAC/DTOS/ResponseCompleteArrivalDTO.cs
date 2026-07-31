@@ -33,6 +33,7 @@
         public string? PreviousCity { get; set; }
         public string? HealthDeclaration { get; set; }
         public string? HealthRecordUrl { get; set; }
+        public string? GoodsRecordUrl { get; set; }
         public string? DigitalDeclarations { get; set; }
 
         public string ModeOfTravelName { get; set; } = string.Empty;
