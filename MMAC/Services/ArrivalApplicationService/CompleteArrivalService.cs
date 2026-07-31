@@ -162,8 +162,15 @@ namespace MMAC.Services.ArrivalInterface
                     throw new InvalidOperationException("This Traveller already Arrived.");
                 }
 
+
                 //Success
                 var result = _mapper.Map<ResponseCompleteArrivalDTO>(app);
+
+                if (app.Traveller != null) _mapper.Map(app.Traveller, result);
+
+                // Re-apply ArrivalApplication-level fields that may be overwritten by the Traveller mapping above
+                result.HealthRecordUrl = app.HealthRecordUrl;
+                result.GoodsRecordUrl = app.GoodsRecordUrl;
 
                 if (app.Traveller != null) _mapper.Map(app.Traveller, result);
                 if (app.selectedModeOfTravel != null) result.ModeOfTravelName = app.selectedModeOfTravel.ModeOfTravelName;
