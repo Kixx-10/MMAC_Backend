@@ -4,6 +4,7 @@
     {
         // Summary counts (all time or filtered by date)
         public int SubmittedApplicationCount { get; set; }
+        public int ArrivedApplicationCount { get; set; }
         public int InvalidApplicationCount { get; set; }
         public int ExpiredApplicationCount { get; set; }
         public int TotalApplicationCount { get; set; }
@@ -11,6 +12,7 @@
         // Today's counts
         public int TodayTotalCount { get; set; }
         public int TodaySubmittedCount { get; set; }
+        public int TodayArrivedCount { get; set; }
         public int TodayInvalidCount { get; set; }
         public int TodayExpiredCount { get; set; }
 
@@ -27,6 +29,7 @@
         public int Submitted { get; set; }
         public int Invalid { get; set; }
         public int Expired { get; set; }
+        public int Arrived { get; set; }
     }
 
     public class NationalityCount
