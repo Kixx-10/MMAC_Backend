@@ -174,5 +174,7 @@ app.MapHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = new Hangfire.Dashboard.IDashboardAuthorizationFilter[] { }
 });
+// Root Path (/)  Health Check Route
+app.MapGet("/", () => Results.Ok("MMAC Backend is running smoothly!"));
 
 app.Run();
